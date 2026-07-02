@@ -13,7 +13,8 @@ DEFAULT_MEMBERS = [
     "防災調整官", "危機管理調整官", "情報セキュリティ管理官", 
     "気象防災情報調整官", "地震津波対策調整官", "火山対策調整官", 
     "気候変動・海洋情報調整官", "総務課長", "会計課長", 
-    "業務課長", "地域防災推進課長", "予報課長", "観測整備課長"
+    "業務課長", "地域防災推進課長", "予報課長", "観測整備課長",
+    "地震火山課長", "地域火山監視・警報センター所長"
 ]
 
 def load_data():
@@ -97,9 +98,13 @@ def toggle_status():
         # ステータスを「自宅」→「登庁」→「出社中」などのように順繰り切り替える
         current_status = data[username]
         if current_status == "自宅":
-            next_status = "登庁"
-        elif current_status == "登庁":
-            next_status = "出社中"
+            next_status = "参集不可"
+        elif current_status == "参集不可":
+            next_status = "30分以内に登庁"
+        elif current_status == "30分以内に登庁":
+            next_status = "1時間以内に登庁"
+        elif current_status == "1時間以内に登庁":
+            next_status = "登庁済み"
         else:
             next_status = "自宅"
             
