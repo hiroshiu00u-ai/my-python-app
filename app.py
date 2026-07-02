@@ -43,7 +43,7 @@ HTML_TEMPLATE = """
     <style>
         body { font-family: sans-serif; background-color: #f0f0f0; margin: 0; padding: 20px; }
         .container { max-width: 800px; margin: 0 auto; background: white; border: 1px solid #ccc; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-        .header { background-color: #003366; color: white; text-align: center; padding: 10px; font-size: 1.2em; font-weight: bold; }
+        .header { background-color: #003366; color: white; text-align: center; padding: 10px; font-size: 20px; font-weight: bold; }
         table { width: 100%; border-collapse: collapse; }
         th, td { padding: 12px; border-bottom: 1px solid #ddd; text-align: left; }
         tr:nth-child(even) { background-color: #f9f9f9; }
