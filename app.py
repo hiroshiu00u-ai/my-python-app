@@ -33,26 +33,34 @@ def save_data(data):
     with open(DATA_FILE, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 
-# HTMLのデザイン（見た目）
+# HTMLのデザイン（スマホ最適化済み）
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
+    <!-- スマホ対応のための重要な1行 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>部課長の参集状況</title>
     <style>
-        body { font-family: sans-serif; background-color: #f0f0f0; margin: 0; padding: 20px; }
-        .container { max-width: 800px; margin: 0 auto; background: white; border: 1px solid #ccc; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-        .header { background-color: #003366; color: white; text-align: center; padding: 10px; font-size: 20px; font-weight: bold; }
+        body { font-family: sans-serif; background-color: #f5f7fa; margin: 0; padding: 10px; }
+        .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); overflow: hidden; }
+        .header { background-color: #003366; color: white; text-align: center; padding: 15px 10px; font-size: 18px; font-weight: bold; }
         table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 12px; border-bottom: 1px solid #ddd; text-align: left; }
-        tr:nth-child(even) { background-color: #f9f9f9; }
-        .btn-push { background-color: #ff6600; color: white; border: none; padding: 6px 12px; font-weight: bold; cursor: pointer; border-radius: 4px; }
+        th, td { padding: 14px 10px; border-bottom: 1px solid #eee; text-align: left; font-size: 14px; }
+        tr:nth-child(even) { background-color: #fafbfc; }
+        
+        /* スマホで押しやすい大きめのボタン */
+        .btn-push { background-color: #ff6600; color: white; border: none; padding: 8px 16px; font-size: 14px; font-weight: bold; cursor: pointer; border-radius: 4px; width: 100%; box-sizing: border-box; }
         .btn-push:hover { background-color: #e65c00; }
-        .status-badge { font-weight: bold; display: inline-block; padding: 4px 8px; border-radius: 4px; }
-        .status-自宅 { color: #666; }
-        .status-出社中 { color: #008800; background-color: #e6ffe6; }
-        .status-登庁 { color: #cc0000; background-color: #ffe6e6; }
+        
+        /* 各ステータスの色分け（スマホで見やすいバッジ型） */
+        .status-badge { font-weight: bold; display: inline-block; padding: 6px 10px; border-radius: 4px; font-size: 13px; text-align: center; width: 100%; box-sizing: border-box; }
+        .status-自宅 { color: #555; background-color: #e9ecef; }
+        .status-参集不可 { color: #721c24; background-color: #f8d7da; }
+        .status-30分以内に登庁 { color: #856404; background-color: #fff3cd; }
+        .status-1時間以内に登庁 { color: #0c5460; background-color: #d1ecf1; }
+        .status-登庁済み { color: #155724; background-color: #d4edda; }
     </style>
 </head>
 <body>
@@ -61,9 +69,11 @@ HTML_TEMPLATE = """
         <table>
             {% for name, status in data.items() %}
             <tr>
-                <td style="width: 40%; font-weight: bold;">{{ name }}</td>
-                <td style="width: 20%;">
-                    {# URLのパラメータ名（?name=〇〇）と一致する場合だけボタンを出す #}
+                <!-- 役職名（狭いスマホ画面でも見やすく調整） -->
+                <td style="width: 45%; font-weight: bold; word-break: break-all;">{{ name }}</td>
+                
+                <!-- PUSHボタン表示エリア -->
+                <td style="width: 20%; text-align: center; padding: 10px 5px;">
                     {% if name == current_user %}
                     <form action="{{ url_for('toggle_status') }}" method="POST" style="margin:0;">
                         <input type="hidden" name="username" value="{{ name }}">
@@ -71,7 +81,9 @@ HTML_TEMPLATE = """
                     </form>
                     {% endif %}
                 </td>
-                <td style="width: 40%;">
+                
+                <!-- ステータス表示エリア -->
+                <td style="width: 35%; padding: 10px 5px;">
                     <span class="status-badge status-{{ status }}">{{ status }}</span>
                 </td>
             </tr>
@@ -95,7 +107,7 @@ def toggle_status():
     data = load_data()
     
     if username in data:
-        # ステータスを「自宅」→「登庁」→「出社中」などのように順繰り切り替える
+        # 新しいステータス遷移のルール
         current_status = data[username]
         if current_status == "自宅":
             next_status = "参集不可"
