@@ -4,10 +4,10 @@ from flask import Flask, render_template_string, request, redirect, url_for
 
 app = Flask(__name__)
 
-# データ保存用ファイル（サーバー内に保存されます）
+# データ保存用ファイル
 DATA_FILE = 'attendance.json'
 
-# 初期メンバーリストとデフォルトのステータス（自宅）
+# 初期メンバーリスト（タイトルの変更に合わせて「災対本部員」を想定）
 DEFAULT_MEMBERS = [
     "管区台長", "総務部長", "気象防災部長", "気象防災部次長", 
     "防災調整官", "危機管理調整官", "情報セキュリティ管理官", 
@@ -17,6 +17,9 @@ DEFAULT_MEMBERS = [
     "地震火山課長", "地域火山監視・警報センター所長"
 ]
 
+# 安全のための簡易リセットトークン
+RESET_TOKEN = "jma-1234"
+
 def load_data():
     """保存されたデータを読み込む"""
     if os.path.exists(DATA_FILE):
@@ -25,7 +28,6 @@ def load_data():
                 return json.load(f)
         except Exception:
             pass
-    # ファイルがない、または壊れている場合は初期データを返す
     return {name: "自宅" for name in DEFAULT_MEMBERS}
 
 def save_data(data):
@@ -33,15 +35,14 @@ def save_data(data):
     with open(DATA_FILE, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 
-# HTMLのデザイン（スマホ最適化済み）
+# HTMLのデザイン（自動スクロール機能・新タイトル対応）
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <!-- スマホ対応のための重要な1行 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>部課長の参集状況</title>
+    <title>災対本部員の参集状況</title>
     <style>
         body { font-family: sans-serif; background-color: #f5f7fa; margin: 0; padding: 10px; }
         .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); overflow: hidden; }
@@ -50,11 +51,12 @@ HTML_TEMPLATE = """
         th, td { padding: 14px 10px; border-bottom: 1px solid #eee; text-align: left; font-size: 14px; }
         tr:nth-child(even) { background-color: #fafbfc; }
         
-        /* スマホで押しやすい大きめのボタン */
+        /* 自分が操作する行を少しわかりやすくハイライト */
+        .my-row { background-color: #fff9e6 !important; }
+        
         .btn-push { background-color: #ff6600; color: white; border: none; padding: 8px 16px; font-size: 14px; font-weight: bold; cursor: pointer; border-radius: 4px; width: 100%; box-sizing: border-box; }
         .btn-push:hover { background-color: #e65c00; }
         
-        /* 各ステータスの色分け（スマホで見やすいバッジ型） */
         .status-badge { font-weight: bold; display: inline-block; padding: 6px 10px; border-radius: 4px; font-size: 13px; text-align: center; width: 100%; box-sizing: border-box; }
         .status-自宅 { color: #555; background-color: #e9ecef; }
         .status-参集不可 { color: #721c24; background-color: #f8d7da; }
@@ -65,14 +67,13 @@ HTML_TEMPLATE = """
 </head>
 <body>
     <div class="container">
-        <div class="header">部課長の参集状況</div>
+        <div class="header">災対本部員の参集状況</div>
         <table>
             {% for name, status in data.items() %}
-            <tr>
-                <!-- 役職名（狭いスマホ画面でも見やすく調整） -->
+            {# 自分の行にはID（my-button-row）と特別スタイルを付与 #}
+            <tr {% if name == current_user %}id="my-button-row" class="my-row"{% endif %}>
                 <td style="width: 45%; font-weight: bold; word-break: break-all;">{{ name }}</td>
                 
-                <!-- PUSHボタン表示エリア -->
                 <td style="width: 20%; text-align: center; padding: 10px 5px;">
                     {% if name == current_user %}
                     <form action="{{ url_for('toggle_status') }}" method="POST" style="margin:0;">
@@ -82,7 +83,6 @@ HTML_TEMPLATE = """
                     {% endif %}
                 </td>
                 
-                <!-- ステータス表示エリア -->
                 <td style="width: 35%; padding: 10px 5px;">
                     <span class="status-badge status-{{ status }}">{{ status }}</span>
                 </td>
@@ -90,14 +90,34 @@ HTML_TEMPLATE = """
             {% endfor %}
         </table>
     </div>
+
+    <script>
+        // ページ読み込み完了時、自分のPUSHボタンがある行まで自動スクロール
+        window.addEventListener('DOMContentLoaded', () => {
+            const myRow = document.getElementById('my-button-row');
+            if (myRow) {
+                // 画面の中央付近にスムーズにスクロールさせる
+                myRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        });
+    </script>
 </body>
 </html>
 """
 
 @app.route('/')
 def home():
-    # URLの ?name=xxx を取得
     current_user = request.args.get('name', '')
+    token = request.args.get('token', '')
+    
+    # 全員リセットの隠しパラメータ処理
+    if current_user == "リセット" and token == RESET_TOKEN:
+        # 全員を自宅に戻す
+        data = {name: "自宅" for name in DEFAULT_MEMBERS}
+        save_data(data)
+        # リセット完了後は通常の閲覧画面（パラメータなし）に転送
+        return redirect(url_for('home'))
+        
     data = load_data()
     return render_template_string(HTML_TEMPLATE, data=data, current_user=current_user)
 
@@ -107,7 +127,6 @@ def toggle_status():
     data = load_data()
     
     if username in data:
-        # 新しいステータス遷移のルール
         current_status = data[username]
         if current_status == "自宅":
             next_status = "参集不可"
@@ -123,7 +142,6 @@ def toggle_status():
         data[username] = next_status
         save_data(data)
         
-    # ボタンを押したあとも、元の人のパラメータ付きURLに戻る
     return redirect(url_for('home', name=username))
 
 if __name__ == '__main__':
